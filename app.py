@@ -2,9 +2,11 @@ from flask import Flask, request, jsonify
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from PIL import Image
 import torch
+from flask_cors import CORS
 
 # Initialize the Flask app
 app = Flask(__name__)
+CORS(app)  # Allow cross-origin requests for development/testing
 
 # Load the model and processor
 model_name = "Diginsa/Plant-Disease-Detection-Project"
