@@ -41,14 +41,29 @@ def predict():
         predicted_class = model.config.id2label[predicted_class_idx]
         confidence = torch.nn.functional.softmax(logits, dim=-1)[0][predicted_class_idx].item()
 
-        # Return the result as JSON
-        return jsonify({
-            "predicted_class": predicted_class,
-            "confidence": round(confidence, 2)
-        })
+        # Construct the response in the desired format
+        response = {
+            "data": [
+                "Model loaded successfully.",
+                f"Predicted Class: {predicted_class}",
+                f"Confidence Score: {round(confidence, 2)}"
+            ],
+            "statusCode": 200,
+            "message": "Disease prediction data fetched successfully",
+            "success": True
+        }
+
+        return jsonify(response)
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # Error response format
+        response = {
+            "data": [],
+            "statusCode": 500,
+            "message": f"An error occurred: {str(e)}",
+            "success": False
+        }
+        return jsonify(response), 500
 
 if __name__ == "__main__":
     app.run(debug=True)
