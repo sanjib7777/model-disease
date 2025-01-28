@@ -9,12 +9,21 @@ import gc
 app = Flask(__name__)
 CORS(app)  # Allow cross-origin requests for development/testing
 
-# Define model loading as a function to optimize memory usage
-def load_model():
+# Set limits for uploaded image size
+app.config["MAX_CONTENT_LENGTH"] = 5 * 1024 * 1024  # Limit to 5 MB
+
+# Global variables for the model and processor
+model = None
+processor = None
+
+# Initialize the model and processor
+def initialize_model():
+    global model, processor
     model_name = "Diginsa/Plant-Disease-Detection-Project"
     processor = AutoImageProcessor.from_pretrained(model_name)
-    model = AutoModelForImageClassification.from_pretrained(model_name)
-    return processor, model
+    model = AutoModelForImageClassification.from_pretrained(model_name).to(torch.device("cpu"), dtype=torch.float16)
+
+initialize_model()
 
 @app.route("/")
 def home():
@@ -31,8 +40,14 @@ def predict():
         image_file = request.files["image"]
         image = Image.open(image_file).convert("RGB")
 
-        # Load the model and processor (lazy loading)
-        processor, model = load_model()
+        # Validate image format
+        SUPPORTED_FORMATS = ["JPEG", "PNG"]
+        if image.format not in SUPPORTED_FORMATS:
+            return jsonify({"error": "Unsupported image format. Please upload a JPEG or PNG image."}), 400
+
+        # Resize the image to reduce memory usage
+        MAX_IMAGE_SIZE = (512, 512)  # Resize to 512x512 pixels
+        image = image.resize(MAX_IMAGE_SIZE)
 
         # Preprocess the image
         inputs = processor(images=image, return_tensors="pt")
@@ -59,8 +74,8 @@ def predict():
             "success": True
         }
 
-        # Explicitly release model and processor memory
-        del model, processor
+        # Explicitly release memory
+        del inputs, outputs, logits
         gc.collect()
 
         return jsonify(response)
@@ -76,5 +91,4 @@ def predict():
         return jsonify(response), 500
 
 if __name__ == "__main__":
-    # Use production-ready Gunicorn with limited workers and threads if required
     app.run(debug=True, host="0.0.0.0", port=5000)
